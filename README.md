@@ -245,7 +245,7 @@ Projet interne – Usage contrôlé.
 
 **Send Report** – Automatisation & Reporting Oracle / Email
 
-Pour toute question ou support, contactez l'équipe de développement.
+Pour toute question ou support, contactez Moi.
 
 ---
 
