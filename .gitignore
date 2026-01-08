@@ -1,4 +1,43 @@
+# =========================
+# Python
+# =========================
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# =========================
+# Build / Executables
+# =========================
+build/
+dist/
+*.exe
+*.spec
+
+# =========================
+# Runtime files
+# =========================
 .env
+.env.*
+logs/
+outputs/
+*.log
+
+# =========================
+# CSV runtime
+# =========================
+report_jobs.csv
+
+# Exemple seulement (commit autorisé)
+!report_jobs.csv.example
+
+# =========================
+# IDE / OS
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

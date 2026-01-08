@@ -1,0 +1,2 @@
+to_email;cc;bcc;subject;template_name;report_type;nd;date_debut;date_fin;partition
+client@entreprise.com;manager@entreprise.com|finance@entreprise.com;audit@entreprise.com;Rapport Remittance;remittance.html;remit;ND001;2026-01-01;2026-01-01;P202601
