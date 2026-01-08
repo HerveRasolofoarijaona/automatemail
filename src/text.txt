@@ -1,0 +1,14 @@
+from email_service import send_email_html
+from datetime import datetime
+
+if __name__ == "__main__":
+    send_email_html(
+        to_email="startuplova@gmail.com",
+        subject="📊 Rapport automatique",
+        template_name="report.html",
+        context={
+            "date": datetime.now().strftime("%d/%m/%Y %H:%M")
+        },
+        attachments=["report.txt"],
+    )
+
