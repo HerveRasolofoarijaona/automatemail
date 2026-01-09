@@ -1,18 +1,20 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-
-from services.reports import fetch_reports
 from export.csv_exporter import generate_csv
 from export.pdf_exporter import generate_pdf
-from email_service import send_email_html
+from services.email_service import send_email_html
 from utils.logger import setup_logger
 
 
 CSV_JOBS_FILE = "report_jobs.csv"
 DATE_FORMAT = "%Y-%m-%d"
 
-logger = setup_logger()
+logger = setup_logger(
+    log_level=os.getenv("LOG_LEVEL", "INFO")
+)
+
+logger.info("Démarrage de l'application")
 
 
 def parse_emails(value: str | None) -> list[str]:

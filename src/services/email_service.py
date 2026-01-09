@@ -5,6 +5,8 @@ from email.message import EmailMessage
 from pathlib import Path
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
+import logging
+
 
 
 load_dotenv()
@@ -16,6 +18,11 @@ def get_base_path():
 
 BASE_PATH = get_base_path()
 TEMPLATE_DIR = BASE_PATH / "templates"
+
+logger = logging.getLogger("send_report")
+
+logger.debug("Requête Oracle exécutée")
+logger.error("Erreur envoi email", exc_info=True)
 
 def send_email_html(
     to_email: str | list[str],
