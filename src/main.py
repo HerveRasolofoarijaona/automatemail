@@ -1,10 +1,12 @@
 import csv
+import os
 from datetime import datetime
 from pathlib import Path
 from export.csv_exporter import generate_csv
 from export.pdf_exporter import generate_pdf
 from services.email_service import send_email_html
 from utils.logger import setup_logger
+from db.oracle import fetch_reports
 
 
 CSV_JOBS_FILE = "report_jobs.csv"
