@@ -2,6 +2,8 @@ import os
 import oracledb
 from dotenv import load_dotenv
 from datetime import datetime
+import logging
+
 
 load_dotenv()
 
@@ -27,6 +29,24 @@ def fetch_reports(
     date_fin: datetime,
     partition: str | None = None,
 ):
+    logger = logging.getLogger("send_report")
+
+    logger.debug("=== Paramètres fetch_reports ===")
+    logger.debug("report_type  : %s", report_type)
+    logger.debug("nd           : %s", nd)
+    logger.debug(
+        "date_debut   : %s",
+        date_debut.strftime("%Y-%m-%d %H:%M:%S") if date_debut else None,
+    )
+    logger.debug(
+        "date_fin     : %s",
+        date_fin.strftime("%Y-%m-%d %H:%M:%S") if date_fin else None,
+    )
+    logger.debug("partition    : %s", partition)
+
+    logger.debug("Requête Oracle en cours")
+    
+    
     if report_type == "remit":
         if not partition:
             raise ValueError("partition obligatoire pour report_type=remit")
@@ -119,6 +139,10 @@ def fetch_reports(
 
     else:
         raise ValueError(f"report_type inconnu : {report_type}")
+    
+    # --- Log SQL ---
+    logger.debug("=== Requête SQL exécutée ===")
+    logger.debug("\n%s", sql)
 
     with get_oracle_connection() as conn:
         with conn.cursor() as cursor:
@@ -131,5 +155,6 @@ def fetch_reports(
 
             columns = [c[0] for c in cursor.description]
             rows = cursor.fetchall()
+            logger.info("Oracle : %d lignes récupérées", len(rows))
 
     return [dict(zip(columns, row)) for row in rows]
