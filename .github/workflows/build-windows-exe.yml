@@ -45,17 +45,6 @@ jobs:
         run: |
           Get-Content build\send_report\warn-send_report.txt -ErrorAction SilentlyContinue
 
-      - name: Extract and analyze EXE contents
-        run: |
-          # Installer pyinstaller-extractor
-          pip install pyinstxtractor
-          
-          # Extraire le contenu de l'EXE
-          python -m pyinstxtractor dist\send_report.exe
-          
-          # Lister les modules inclus
-          Get-ChildItem send_report.exe_extracted -Recurse | Where-Object { $_.Name -like "*cryptography*" -or $_.Name -like "*oracledb*" -or $_.Name -like "*cffi*" } | Select-Object FullName
-
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         with:
