@@ -2,6 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import os
+from datetime import datetime
 
 
 def setup_logger(
@@ -34,9 +35,12 @@ def setup_logger(
         "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
     )
 
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"send_report_{timestamp}.log"
+
     # ---- File handler (rotation)
     file_handler = RotatingFileHandler(
-        log_dir / "send_report.log",
+        log_dir / filename,
         maxBytes=5 * 1024 * 1024,  # 5 MB
         backupCount=5,
         encoding="utf-8",

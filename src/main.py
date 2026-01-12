@@ -98,6 +98,7 @@ def main():
                 pdf_file = generate_pdf(
                     results,
                     filename_prefix=f"{report_type}_{nd}",
+                    report_type=report_type,
                 )
 
                 logger.info(f"[JOB {idx}] Fichiers générés")
