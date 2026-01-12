@@ -30,12 +30,9 @@ jobs:
             --onefile `
             --name send_report `
             --add-data "src\templates;templates" `
-            --hidden-import oracledb `
-            --hidden-import cryptography `
-            --hidden-import cryptography.hazmat.backends `
-            --hidden-import cryptography.hazmat.backends.openssl `
-            --hidden-import cryptography.hazmat.bindings._rust `
-            --hidden-import _cffi_backend `
+            --collect-all cryptography `
+            --collect-all oracledb `
+            --collect-all cffi `
             src\main.py
 
       - name: Upload EXE artifact

@@ -9,17 +9,24 @@ load_dotenv()
 
 
 def get_oracle_connection():
-    # Initialiser le mode thick (nécessite Oracle Instant Client)
-    try:
-        oracledb.init_oracle_client()
-    except Exception:
-        pass  # Déjà initialisé ou pas disponible
+    # NE PAS UTILISER init_oracle_client() pour le mode thin
+    # oracledb.init_oracle_client()  # ← COMMENTEZ CETTE LIGNE
+    
+    host = os.getenv("ORACLE_HOST")
+    port = os.getenv("ORACLE_PORT")
+    service = os.getenv("ORACLE_SERVICE")
+    user = os.getenv("ORACLE_USER")
+    password = os.getenv("ORACLE_PASSWORD")
+    
+    # Format DSN pour le mode thin
+    dsn = f"{host}:{port}/{service}"
     
     connection = oracledb.connect(
-        user=os.getenv("ORACLE_USER"),
-        password=os.getenv("ORACLE_PASSWORD"),
-        dsn=os.getenv("ORACLE_DSN")
+        user=user,
+        password=password,
+        dsn=dsn
     )
+    
     return connection
 
 def fetch_reports(
