@@ -92,6 +92,7 @@ def main():
                 csv_file = generate_csv(
                     results,
                     filename_prefix=f"{report_type}_{nd}",
+                    report_type=report_type,
                 )
 
                 pdf_file = generate_pdf(
