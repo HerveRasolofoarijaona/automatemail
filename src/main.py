@@ -48,9 +48,28 @@ def main():
 
                 report_type = job["report_type"]
                 nd = job["nd"]
-                date_debut = datetime.strptime(job["date_debut"], DATE_FORMAT)
-                date_fin = datetime.strptime(job["date_fin"], DATE_FORMAT)
-                partition = job.get("partition") or None
+                
+                # Assurez-vous que les bonnes colonnes sont parsées
+                date_debut_str = job["date_debut"].strip()
+                date_fin_str = job["date_fin"].strip()
+                
+                # Log pour déboguer
+                logger.info(f"[JOB {idx}] date_debut brute: '{date_debut_str}'")
+                logger.info(f"[JOB {idx}] date_fin brute: '{date_fin_str}'")
+                
+                date_debut = datetime.strptime(date_debut_str, DATE_FORMAT)
+                date_fin = datetime.strptime(date_fin_str, DATE_FORMAT)
+                
+                # La partition doit être récupérée telle quelle, pas parsée comme une date
+                partition = job.get("partition", "").strip() or None
+
+                logger.debug(f"Contenu de job: {job}")
+                logger.debug(f"date_debut = '{job['date_debut']}'")
+                logger.debug(f"date_fin = '{job['date_fin']}'")
+                logger.debug(f"partition = '{job.get('partition')}'")
+
+                logger.info(f"[JOB {idx}] Paramètres: type={report_type}, nd={nd}, "
+                           f"debut={date_debut}, fin={date_fin}, partition={partition}")
 
                 results = fetch_reports(
                     report_type=report_type,
