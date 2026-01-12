@@ -2,32 +2,62 @@ import os
 import oracledb
 from dotenv import load_dotenv
 from datetime import datetime
+from contextlib import contextmanager
 import logging
 
 
 load_dotenv()
 
 
+
+
+logger = logging.getLogger("send_report")
+
+@contextmanager
 def get_oracle_connection():
-    # NE PAS UTILISER init_oracle_client() pour le mode thin
-    # oracledb.init_oracle_client()  # ← COMMENTEZ CETTE LIGNE
-    
-    host = os.getenv("ORACLE_HOST")
-    port = os.getenv("ORACLE_PORT")
-    service = os.getenv("ORACLE_SERVICE")
+    """
+    Retourne une connexion Oracle (mode THIN par défaut).
+    Le mode THICK est activé automatiquement si ORACLE_CLIENT_LIB est défini.
+    """
+
     user = os.getenv("ORACLE_USER")
     password = os.getenv("ORACLE_PASSWORD")
-    
-    # Format DSN pour le mode thin
-    dsn = f"{host}:{port}/{service}"
-    
-    connection = oracledb.connect(
-        user=user,
-        password=password,
-        dsn=dsn
-    )
-    
-    return connection
+    dsn = os.getenv("ORACLE_DSN")
+    client_lib = os.getenv("ORACLE_CLIENT_LIB")  # optionnel (THICK)
+
+    if not all([user, password, dsn]):
+        raise RuntimeError("Configuration Oracle incomplète (.env)")
+
+    # --- Mode THICK si demandé ---
+    if client_lib:
+        try:
+            oracledb.init_oracle_client(lib_dir=client_lib)
+            logger.info("Oracle client initialisé (THICK mode)")
+        except oracledb.ProgrammingError:
+            # déjà initialisé → OK
+            pass
+
+    conn = None
+    try:
+        logger.debug("Connexion Oracle en cours...")
+        conn = oracledb.connect(
+            user=user,
+            password=password,
+            dsn=dsn,
+        )
+        yield conn
+
+    except Exception:
+        logger.exception("Erreur connexion Oracle")
+        raise
+
+    finally:
+        if conn:
+            conn.close()
+            logger.debug("Connexion Oracle fermée")
+
+
+
 
 def fetch_reports(
     report_type: str,

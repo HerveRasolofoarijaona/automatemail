@@ -24,7 +24,12 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build EXE
+      - name: Verify cryptography installation
+        run: |
+          python -c "import cryptography; print('cryptography version:', cryptography.__version__)"
+          python -c "import oracledb; print('oracledb version:', oracledb.__version__)"
+
+      - name: Build EXE with analysis
         run: |
           pyinstaller `
             --onefile `
@@ -33,7 +38,31 @@ jobs:
             --collect-all cryptography `
             --collect-all oracledb `
             --collect-all cffi `
+            --log-level DEBUG `
             src\main.py
+
+      - name: List build warnings
+        run: |
+          Get-Content build\send_report\warn-send_report.txt -ErrorAction SilentlyContinue
+
+      - name: Extract and analyze EXE contents
+        run: |
+          # Installer pyinstaller-extractor
+          pip install pyinstxtractor
+          
+          # Extraire le contenu de l'EXE
+          python -m pyinstxtractor dist\send_report.exe
+          
+          # Lister les modules inclus
+          Get-ChildItem send_report.exe_extracted -Recurse | Where-Object { $_.Name -like "*cryptography*" -or $_.Name -like "*oracledb*" -or $_.Name -like "*cffi*" } | Select-Object FullName
+
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build/send_report/warn-send_report.txt
+            build/send_report/*.toc
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
