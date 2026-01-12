@@ -35,7 +35,7 @@ def main():
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter=";")
 
-        for idx, job in enumerate(reader, start=1):
+        for idx, job in enumerate(reader, start=0):
             try:
                 logger.info(f"[JOB {idx}] Début traitement")
 
