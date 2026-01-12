@@ -1,60 +1,113 @@
 import os
-import smtplib
 import sys
-from email.message import EmailMessage
+import smtplib
+import logging
 from pathlib import Path
+from email.message import EmailMessage
+from email.utils import make_msgid
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
-import logging
+from datetime import datetime
+from typing import List
 
 
+# ============================================================
+# ENV & LOGGER
+# ============================================================
 
 load_dotenv()
+logger = logging.getLogger("send_report")
 
-def get_base_path():
+
+# ============================================================
+# PATH MANAGEMENT (DEV + EXE SAFE)
+# ============================================================
+
+def get_base_path() -> Path:
+    """
+    Retourne le chemin racine pour les ressources embarquées
+    - DEV  : dossier src/
+    - EXE  : sys._MEIPASS
+    """
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
+
 
 BASE_PATH = get_base_path()
 TEMPLATE_DIR = BASE_PATH / "templates"
 
-logger = logging.getLogger("send_report")
 
-logger.debug("Requête Oracle exécutée")
-logger.error("Erreur envoi email", exc_info=True)
+# ============================================================
+# VALIDATION HELPERS
+# ============================================================
+
+def _normalize_emails(emails: str | List[str] | None) -> List[str]:
+    if not emails:
+        return []
+    if isinstance(emails, str):
+        return [emails]
+    return emails
+
+
+# ============================================================
+# MAIN EMAIL FUNCTION
+# ============================================================
 
 def send_email_html(
-    to_email: str | list[str],
+    to_email: str | List[str],
     subject: str,
     template_name: str,
     context: dict,
-    cc: list[str] | None = None,
-    bcc: list[str] | None = None,
-    attachments: list[str] | None = None,
+    cc: List[str] | None = None,
+    bcc: List[str] | None = None,
+    attachments: List[str | Path] | None = None,
 ) -> None:
+    """
+    Envoi d'un email HTML avec pièces jointes
+    Compatible PyInstaller / EXE
+    """
+
+    # ---------------- ENV ----------------
     host = os.getenv("EMAIL_HOST")
-    port = int(os.getenv("EMAIL_PORT", "0"))
+    port = int(os.getenv("EMAIL_PORT", 0))
     user = os.getenv("EMAIL_USER")
     password = os.getenv("EMAIL_PASSWORD")
 
     if not all([host, port, user, password]):
-        raise RuntimeError("Configuration email incomplète")
+        raise RuntimeError("Configuration EMAIL_* incomplète (.env)")
 
-    # --- Normalize recipients ---
-    to_list = [to_email] if isinstance(to_email, str) else to_email
-    cc_list = cc or []
-    bcc_list = bcc or []
+    # ---------------- RECIPIENTS ----------------
+    to_list = _normalize_emails(to_email)
+    cc_list = _normalize_emails(cc)
+    bcc_list = _normalize_emails(bcc)
 
-    # --- HTML rendering ---
-    env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
-    template = env.get_template(template_name)
+    if not to_list:
+        raise ValueError("Aucun destinataire principal (To)")
+
+    # ---------------- TEMPLATE ----------------
+    if not TEMPLATE_DIR.exists():
+        raise RuntimeError(f"Dossier templates introuvable : {TEMPLATE_DIR}")
+
+    env = Environment(
+        loader=FileSystemLoader(str(TEMPLATE_DIR)),
+        autoescape=True
+    )
+
+    try:
+        template = env.get_template(template_name)
+    except Exception as e:
+        logger.error(f"Template introuvable : {template_name}")
+        raise
+
     html_content = template.render(**context)
 
+    # ---------------- MESSAGE ----------------
     msg = EmailMessage()
     msg["From"] = user
     msg["To"] = ", ".join(to_list)
     msg["Subject"] = subject
+    msg["Message-ID"] = make_msgid()
 
     if cc_list:
         msg["Cc"] = ", ".join(cc_list)
@@ -62,12 +115,15 @@ def send_email_html(
     msg.set_content("Votre client email ne supporte pas le HTML.")
     msg.add_alternative(html_content, subtype="html")
 
-    # --- Attachments ---
+    # ---------------- ATTACHMENTS ----------------
+    attached_files = []
+
     if attachments:
-        for file_path in attachments:
-            path = Path(file_path)
+        for file in attachments:
+            path = Path(file)
             if not path.exists():
-                raise FileNotFoundError(f"Fichier introuvable : {path}")
+                logger.warning(f"PJ introuvable ignorée : {path}")
+                continue
 
             with open(path, "rb") as f:
                 msg.add_attachment(
@@ -77,19 +133,24 @@ def send_email_html(
                     filename=path.name,
                 )
 
-    # --- ALL recipients (To + Cc + Bcc) ---
-    all_recipients = to_list + cc_list + bcc_list
+            attached_files.append(path.name)
 
-    # --- Send ---
+    # ---------------- SEND ----------------
+    recipients = to_list + cc_list + bcc_list
+
+    logger.info(
+        f"Envoi email → To={to_list} | Cc={cc_list} | "
+        f"Bcc={len(bcc_list)} | PJ={attached_files}"
+    )
+
     try:
-        with smtplib.SMTP(host, port) as server:
+        with smtplib.SMTP(host, port, timeout=30) as server:
             server.starttls()
             server.login(user, password)
-            server.send_message(
-                msg,
-                from_addr=user,
-                to_addrs=all_recipients,  # 🔥 BCC ici seulement
-            )
+            server.send_message(msg, to_addrs=recipients)
 
-    except Exception as e:
-        raise RuntimeError(f"Échec envoi email : {e}")
+        logger.info("Email envoyé avec succès")
+
+    except Exception:
+        logger.exception("Erreur lors de l'envoi de l'email")
+        raise

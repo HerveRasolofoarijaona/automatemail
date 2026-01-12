@@ -1,7 +1,13 @@
 import logging
 from pathlib import Path
 from datetime import datetime
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    PageBreak
+)
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
@@ -12,32 +18,31 @@ def generate_pdf(
     filename_prefix: str,
     report_type: str,
     output_base_dir: str = "outputs",
+    rows_per_page: int = 50,
 ) -> Path:
+
     logger = logging.getLogger("send_report")
 
     if not data:
-        logger.warning("Aucune donnée à exporter → PDF non généré")
         raise ValueError("Aucune donnée à exporter")
 
-    # outputs/<report_type>/
+    # ---------- PATH ----------
     output_dir = Path(output_base_dir) / report_type
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.debug(f"Dossier de sortie PDF : {output_dir.resolve()}")
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{filename_prefix}_{timestamp}.pdf"
+    filename = f"{filename_prefix}_{datetime.now():%Y%m%d_%H%M%S}.pdf"
     filepath = output_dir / filename
 
     logger.info(
-        f"Génération PDF en cours | fichier={filename} | lignes={len(data)}"
+        f"Génération PDF paginée | fichier={filename} | lignes={len(data)}"
     )
 
+    # ---------- DOCUMENT ----------
     doc = SimpleDocTemplate(
         str(filepath),
         pagesize=landscape(A4),
-        rightMargin=20,
         leftMargin=20,
+        rightMargin=20,
         topMargin=20,
         bottomMargin=20,
     )
@@ -45,38 +50,57 @@ def generate_pdf(
     styles = getSampleStyleSheet()
     elements = []
 
-    # --- Titre ---
+    # ---------- HEADER ----------
     elements.append(Paragraph("Rapport automatique", styles["Title"]))
-    elements.append(
-        Paragraph(
-            f"Généré le {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-            styles["Normal"],
-        )
-    )
+    elements.append(Paragraph(
+        f"Généré le {datetime.now():%d/%m/%Y %H:%M}",
+        styles["Normal"]
+    ))
+    elements.append(Paragraph(
+        f"Type: {report_type} — Total lignes: {len(data)}",
+        styles["Italic"]
+    ))
+    elements.append(PageBreak())
 
-    # --- Table ---
+    # ---------- TABLE ----------
     headers = list(data[0].keys())
-    table_data = [headers]
+    col_count = len(headers)
 
-    for row in data:
-        table_data.append([str(row.get(h, "")) for h in headers])
+    col_widths = [doc.width / col_count] * col_count
 
-    table = Table(table_data, repeatRows=1)
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
-                ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ]
+    def table_style():
+        return TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ])
+
+    # ---------- PAGINATION ----------
+    for start in range(0, len(data), rows_per_page):
+        chunk = data[start:start + rows_per_page]
+
+        table_data = [headers]
+        for row in chunk:
+            table_data.append([str(row[h]) for h in headers])
+
+        table = Table(
+            table_data,
+            colWidths=col_widths,
+            repeatRows=1
         )
-    )
+        table.setStyle(table_style())
 
-    elements.append(table)
+        elements.append(table)
+        elements.append(PageBreak())
 
+        if start % (rows_per_page * 20) == 0:
+            logger.debug(f"PDF progression : {start}/{len(data)} lignes")
+
+    # ---------- BUILD ----------
     doc.build(elements)
 
     logger.info(f"PDF généré avec succès : {filepath.resolve()}")
