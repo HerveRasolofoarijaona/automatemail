@@ -91,10 +91,12 @@ def main():
 
                 csv_file = generate_csv(
                     results,
-                    filename_prefix=f"{report_type}_{nd}",
+                    filename_prefix=f"{report_type}_{nd}_{to_email}_",
                     report_type=report_type,
                 )
 
+
+                """
                 pdf_file = generate_pdf(
                     results,
                     filename_prefix=f"{report_type}_{nd}",
@@ -122,6 +124,7 @@ def main():
                 )
 
                 logger.info(f"[JOB {idx}] Email envoyé avec succès")
+                """
 
             except Exception as e:
                 logger.error(

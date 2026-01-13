@@ -1,7 +1,7 @@
 import os
 import oracledb
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime,time
 from contextlib import contextmanager
 import logging
 
@@ -56,7 +56,18 @@ def get_oracle_connection():
             conn.close()
             logger.debug("Connexion Oracle fermée")
 
-
+def normalize_date_range(
+    date_debut: datetime,
+    date_fin: datetime,
+) -> tuple[datetime, datetime]:
+    """
+    Force :
+    - date_debut à 00:00:00
+    - date_fin à 23:59:59
+    """
+    start = datetime.combine(date_debut.date(), time.min)
+    end = datetime.combine(date_fin.date(), time.max.replace(microsecond=0))
+    return start, end
 
 
 def fetch_reports(
@@ -67,6 +78,11 @@ def fetch_reports(
     partition: str | None = None,
 ):
     logger = logging.getLogger("send_report")
+
+    date_debut, date_fin = normalize_date_range(
+        date_debut,
+        date_fin
+    )
 
     logger.debug("=== Paramètres fetch_reports ===")
     logger.debug("report_type  : %s", report_type)
