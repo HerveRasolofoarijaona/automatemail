@@ -1,9 +1,9 @@
 import csv
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+
 from export.csv_exporter import generate_csv
-from export.pdf_exporter import generate_pdf
 from services.email_service import send_email_html
 from utils.logger import setup_logger
 from db.oracle import fetch_reports
@@ -27,6 +27,7 @@ def parse_emails(value: str | None) -> list[str]:
 
 def main():
     csv_path = Path(CSV_JOBS_FILE)
+    summary_rows: list[dict] = []
 
     if not csv_path.exists():
         logger.error(f"Fichier jobs introuvable : {CSV_JOBS_FILE}")
@@ -50,28 +51,25 @@ def main():
 
                 report_type = job["report_type"]
                 nd = job["nd"]
-                
-                # Assurez-vous que les bonnes colonnes sont parsées
-                date_debut_str = job["date_debut"].strip()
-                date_fin_str = job["date_fin"].strip()
-                
-                # Log pour déboguer
-                logger.info(f"[JOB {idx}] date_debut brute: '{date_debut_str}'")
-                logger.info(f"[JOB {idx}] date_fin brute: '{date_fin_str}'")
-                
-                date_debut = datetime.strptime(date_debut_str, DATE_FORMAT)
-                date_fin = datetime.strptime(date_fin_str, DATE_FORMAT)
-                
-                # La partition doit être récupérée telle quelle, pas parsée comme une date
+
+                # Dates
+                date_debut = datetime.strptime(
+                    job["date_debut"].strip(), DATE_FORMAT
+                )
+
+                # 🔥 FIN À 23:59:59
+                date_fin = (
+                    datetime.strptime(job["date_fin"].strip(), DATE_FORMAT)
+                    + timedelta(days=1)
+                    - timedelta(seconds=1)
+                )
+
                 partition = job.get("partition", "").strip() or None
 
-                logger.debug(f"Contenu de job: {job}")
-                logger.debug(f"date_debut = '{job['date_debut']}'")
-                logger.debug(f"date_fin = '{job['date_fin']}'")
-                logger.debug(f"partition = '{job.get('partition')}'")
-
-                logger.info(f"[JOB {idx}] Paramètres: type={report_type}, nd={nd}, "
-                           f"debut={date_debut}, fin={date_fin}, partition={partition}")
+                logger.info(
+                    f"[JOB {idx}] Paramètres: type={report_type}, nd={nd}, "
+                    f"debut={date_debut}, fin={date_fin}, partition={partition}"
+                )
 
                 results = fetch_reports(
                     report_type=report_type,
@@ -82,55 +80,75 @@ def main():
                 )
 
                 if not results:
-                    logger.warning(
-                        f"[JOB {idx}] Aucun résultat (ND={nd}, type={report_type})"
-                    )
+                    logger.warning(f"[JOB {idx}] Aucun résultat")
                     continue
 
                 logger.info(f"[JOB {idx}] {len(results)} lignes récupérées")
 
+                date_formatee_debut = date_debut.strftime("%Y%m%d")
+                date_formatee_fin = date_fin.strftime("%Y%m%d")
+
                 csv_file = generate_csv(
                     results,
-                    filename_prefix=f"{report_type}_{nd}_{to_email}_",
+                    filename_prefix=f"report_{template_name}_{nd}_{date_formatee_debut}_{date_formatee_fin}_",
                     report_type=report_type,
                 )
 
-
                 """
-                pdf_file = generate_pdf(
-                    results,
-                    filename_prefix=f"{report_type}_{nd}",
-                    report_type=report_type,
-                )
+                    pdf_file = generate_pdf(
+                        results,
+                        filename_prefix=f"{report_type}_{nd}",
+                        report_type=report_type,
+                    )
 
-                logger.info(f"[JOB {idx}] Fichiers générés")
+                    logger.info(f"[JOB {idx}] Fichiers générés")
 
-                context = {
-                    "nd": nd,
-                    "report_type": report_type.upper(),
-                    "date_debut": date_debut.strftime("%d/%m/%Y"),
-                    "date_fin": date_fin.strftime("%d/%m/%Y"),
-                    "count": len(results),
-                }
+                    context = {
+                        "nd": nd,
+                        "report_type": report_type.upper(),
+                        "date_debut": date_debut.strftime("%d/%m/%Y"),
+                        "date_fin": date_fin.strftime("%d/%m/%Y"),
+                        "count": len(results),
+                    }
 
-                send_email_html(
-                    to_email=to_email,
-                    cc=cc,
-                    bcc=bcc,
-                    subject=subject,
-                    template_name=template_name,
-                    context=context,
-                    attachments=[csv_file, pdf_file],
-                )
+                    send_email_html(
+                        to_email=to_email,
+                        cc=cc,
+                        bcc=bcc,
+                        subject=subject,
+                        template_name=template_name,
+                        context=context,
+                        attachments=[csv_file, pdf_file],
+                    )
 
-                logger.info(f"[JOB {idx}] Email envoyé avec succès")
+                    logger.info(f"[JOB {idx}] Email envoyé avec succès")
                 """
+                summary_rows.append({
+                    "to_email": ",".join(to_email),
+                    "csv_files": str(csv_file),
+                })
 
             except Exception as e:
                 logger.error(
                     f"[JOB {idx}] Erreur traitement : {e}",
                     exc_info=True,
                 )
+
+    # === CSV RÉCAPITULATIF ===
+    if summary_rows:
+        summary_path = Path("outputs") / "jobs_summary.csv"
+        summary_path.parent.mkdir(exist_ok=True)
+
+        with open(summary_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["to_email", "csv_files"]
+            )
+            writer.writeheader()
+            writer.writerows(summary_rows)
+
+        logger.info(f"CSV récapitulatif généré : {summary_path}")
+    else:
+        logger.warning("Aucun job traité, CSV récapitulatif non généré")
 
     logger.info("=== Fin traitement des jobs ===")
 
