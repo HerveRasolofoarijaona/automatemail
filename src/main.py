@@ -90,7 +90,7 @@ def main():
 
                 csv_file = generate_csv(
                     results,
-                    filename_prefix=f"report_{subject}_{nd}_{date_formatee_debut}_{date_formatee_fin}_",
+                    filename_prefix=f"report_{subject}_{nd}_{date_formatee_debut}_{date_formatee_fin}",
                     report_type=report_type,
                 )
 
