@@ -24,11 +24,6 @@ logger = logging.getLogger("send_report")
 # ============================================================
 
 def get_base_path() -> Path:
-    """
-    Retourne le chemin racine pour les ressources embarquées
-    - DEV  : dossier src/
-    - EXE  : sys._MEIPASS
-    """
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent.parent
@@ -63,19 +58,14 @@ def send_email_html(
     bcc: List[str] | None = None,
     attachments: List[str | Path] | None = None,
 ) -> None:
-    """
-    Envoi d'un email HTML avec pièces jointes
-    Compatible PyInstaller / EXE
-    """
 
     # ---------------- ENV ----------------
     host = os.getenv("EMAIL_HOST")
-    port = int(os.getenv("EMAIL_PORT", 0))
-    user = os.getenv("EMAIL_USER")
-    password = os.getenv("EMAIL_PASSWORD")
+    port = int(os.getenv("EMAIL_PORT", 25))  # 25 = port SMTP sans auth
+    from_email = os.getenv("EMAIL_FROM")     # adresse expéditeur uniquement
 
-    if not all([host, port, user, password]):
-        raise RuntimeError("Configuration EMAIL_* incomplète (.env)")
+    if not all([host, port, from_email]):
+        raise RuntimeError("Configuration EMAIL_HOST, EMAIL_PORT, EMAIL_FROM incomplète (.env)")
 
     # ---------------- RECIPIENTS ----------------
     to_list = _normalize_emails(to_email)
@@ -104,7 +94,7 @@ def send_email_html(
 
     # ---------------- MESSAGE ----------------
     msg = EmailMessage()
-    msg["From"] = user
+    msg["From"] = from_email
     msg["To"] = ", ".join(to_list)
     msg["Subject"] = subject
     msg["Message-ID"] = make_msgid()
@@ -132,10 +122,9 @@ def send_email_html(
                     subtype="octet-stream",
                     filename=path.name,
                 )
-
             attached_files.append(path.name)
 
-    # ---------------- SEND ----------------
+    # ---------------- SEND (sans authentification) ----------------
     recipients = to_list + cc_list + bcc_list
 
     logger.info(
@@ -145,9 +134,8 @@ def send_email_html(
 
     try:
         with smtplib.SMTP(host, port, timeout=30) as server:
-            server.starttls()
-            server.login(user, password)
-            server.send_message(msg, to_addrs=recipients)
+            # Pas de starttls() ni login() — SMTP relay interne
+            server.send_message(msg, from_addr=from_email, to_addrs=recipients)
 
         logger.info("Email envoyé avec succès")
 

@@ -102,27 +102,27 @@ def main():
                     )
 
                     logger.info(f"[JOB {idx}] Fichiers générés")
+                """ 
+                context = {
+                    "nd": nd,
+                    "report_type": report_type.upper(),
+                    "date_debut": date_debut.strftime("%d/%m/%Y"),
+                    "date_fin": date_fin.strftime("%d/%m/%Y"),
+                    "count": len(results),
+                }                   
 
-                    context = {
-                        "nd": nd,
-                        "report_type": report_type.upper(),
-                        "date_debut": date_debut.strftime("%d/%m/%Y"),
-                        "date_fin": date_fin.strftime("%d/%m/%Y"),
-                        "count": len(results),
-                    }
-
-                    send_email_html(
+                send_email_html(
                         to_email=to_email,
                         cc=cc,
                         bcc=bcc,
                         subject=subject,
                         template_name=template_name,
                         context=context,
-                        attachments=[csv_file, pdf_file],
-                    )
+                        attachments=[csv_file],
+                )
 
-                    logger.info(f"[JOB {idx}] Email envoyé avec succès")
-                """
+                logger.info(f"[JOB {idx}] Email envoyé avec succès")
+                
                 summary_rows.append({
                     "to_email": ",".join(to_email),
                     "csv_files": str(csv_file),
@@ -136,7 +136,8 @@ def main():
 
     # === CSV RÉCAPITULATIF ===
     if summary_rows:
-        summary_path = Path("outputs") / "jobs_summary.csv"
+        today = datetime.now().strftime("%Y_%m_%d")
+        summary_path = Path("outputs") / f"jobs_summary_{today}.csv"
         summary_path.parent.mkdir(exist_ok=True)
 
         with open(summary_path, "w", newline="", encoding="utf-8") as f:
