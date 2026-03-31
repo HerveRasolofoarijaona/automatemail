@@ -3,6 +3,18 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# ✅ Pour PyInstaller : chercher le .env à côté de l'exe
+if getattr(sys, 'frozen', False):
+    # On est dans un exe PyInstaller
+    base_dir = os.path.dirname(sys.executable)
+else:
+    base_dir = os.path.dirname(os.path.abspath(_file_))
+
+load_dotenv(os.path.join(base_dir, ".env"))
+
+
 from export.csv_exporter import generate_csv
 from services.email_service import send_email_html
 from utils.logger import setup_logger

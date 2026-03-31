@@ -8,49 +8,52 @@ import logging
 
 load_dotenv()
 
-
-
-
 logger = logging.getLogger("send_report")
+
+# ✅ Initialisation THICK une seule fois au chargement du module
+_oracle_initialized = False
+
+def _init_oracle_thick():
+    global _oracle_initialized
+    if _oracle_initialized:
+        return
+    client_lib = os.getenv("ORACLE_CLIENT_LIB")
+    if client_lib:
+        try:
+            oracledb.init_oracle_client(lib_dir=client_lib)
+            logger.info("Oracle client initialisé (THICK mode) depuis : %s", client_lib)
+            _oracle_initialized = True
+        except oracledb.ProgrammingError:
+            # Déjà initialisé
+            _oracle_initialized = True
+    else:
+        logger.warning("ORACLE_CLIENT_LIB non défini, mode THIN utilisé")
+
+# ✅ Appel immédiat au chargement du module
+_init_oracle_thick()
+
 
 @contextmanager
 def get_oracle_connection():
-    """
-    Retourne une connexion Oracle (mode THIN par défaut).
-    Le mode THICK est activé automatiquement si ORACLE_CLIENT_LIB est défini.
-    """
-
     user = os.getenv("ORACLE_USER")
     password = os.getenv("ORACLE_PASSWORD")
     dsn = os.getenv("ORACLE_DSN")
-    client_lib = os.getenv("ORACLE_CLIENT_LIB")  # optionnel (THICK)
 
     if not all([user, password, dsn]):
         raise RuntimeError("Configuration Oracle incomplète (.env)")
 
-    # --- Mode THICK si demandé ---
-    if client_lib:
-        try:
-            oracledb.init_oracle_client(lib_dir=client_lib)
-            logger.info("Oracle client initialisé (THICK mode)")
-        except oracledb.ProgrammingError:
-            # déjà initialisé → OK
-            pass
-
     conn = None
     try:
-        logger.debug("Connexion Oracle en cours...")
+        logger.debug("Connexion Oracle en cours... ")
         conn = oracledb.connect(
             user=user,
             password=password,
             dsn=dsn,
         )
         yield conn
-
     except Exception:
-        logger.exception("Erreur connexion Oracle")
+        logger.exception("Erreur connexion Oracle ")
         raise
-
     finally:
         if conn:
             conn.close()
