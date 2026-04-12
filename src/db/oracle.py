@@ -208,7 +208,7 @@ def fetch_reports(
                     tr.C_POST_BAL AS VERS_BALANCE_APRES,
                     tr.DETAILS1,
                     tr.DETAILS2
-                FROM MCOMMADM.TRANS_REPORT PARTITION ({partition_clause}) tr
+                FROM MCOMMADM.TRANS_REPORT {partition_clause} tr
                 WHERE
                     (tr.INITIATOR = :nd OR tr.DEBTOR = :nd OR tr.CREDITOR = :nd)
                     AND tr.TRANS_TYPE NOT IN (
