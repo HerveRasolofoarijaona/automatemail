@@ -190,16 +190,32 @@ def fetch_reports(
             
         elif report_type.lower() == "up":
             query = """
-                SELECT 
-                    transaction_id,
-                    date_transaction,
-                    montant,
-                    devise,
-                    statut
-                FROM transactions{partition_clause}
-                WHERE msisdn = :nd
-                  AND date_transaction BETWEEN :date_debut AND :date_fin
-                  AND type_transaction = 'UP'
+                    SELECT
+                    tr.MODIFIED AS DATE_TRANS,
+                    tr.TRANSID AS N_TRANSACTION,
+                    tr.INITIATOR,
+                    tr.TRANS_TYPE,
+                    tr.CHANNEL,
+                    tr.STATE,
+                    CASE WHEN tr.WALLET = 'EWallet' THEN 'M_Vola' ELSE tr.WALLET END AS COMPTE,
+                    tr.AMOUNT,
+                    tr.RRP,
+                    tr.DEBTOR,
+                    tr.CREDITOR,
+                    tr.D_PRE_BAL AS DE_BALANCE_AVANT,
+                    tr.D_POST_BAL AS DE_BALANCE_APRES,
+                    tr.C_PRE_BAL AS VERS_BALANCE_AVANT,
+                    tr.C_POST_BAL AS VERS_BALANCE_APRES,
+                    tr.DETAILS1,
+                    tr.DETAILS2
+                FROM MCOMMADM.TRANS_REPORT PARTITION ({partition_clause}) tr
+                WHERE
+                    (tr.INITIATOR = :nd OR tr.DEBTOR = :nd OR tr.CREDITOR = :nd)
+                    AND tr.TRANS_TYPE NOT IN (
+                        'login','balance','logout','create_batch','report','trans_query_ext'
+                    )
+                    AND tr.MODIFIED BETWEEN :date_debut AND :date_fin
+                ORDER BY tr.MODIFIED DESC
             """
             
             partition_clause = f" PARTITION ({partition})" if partition else ""
@@ -211,28 +227,7 @@ def fetch_reports(
                 'date_fin': date_fin
             }
             
-        elif report_type.lower() == "down":
-            query = """
-                SELECT 
-                    transaction_id,
-                    date_transaction,
-                    montant,
-                    devise,
-                    statut
-                FROM transactions{partition_clause}
-                WHERE msisdn = :nd
-                  AND date_transaction BETWEEN :date_debut AND :date_fin
-                  AND type_transaction = 'DOWN'
-            """
-            
-            partition_clause = f" PARTITION ({partition})" if partition else ""
-            query = query.replace("{partition_clause}", partition_clause)
-            
-            params = {
-                'nd': nd,
-                'date_debut': date_debut,
-                'date_fin': date_fin
-            }
+        
         else:
             raise ValueError(f"Type de rapport non supporté: {report_type}")
         
