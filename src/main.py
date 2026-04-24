@@ -20,6 +20,7 @@ from export.csv_exporter import generate_csv
 from services.email_service import send_email_html
 from utils.logger import setup_logger
 from db.oracle import fetch_reports
+from export.pdf_exporter import generate_pdfs_from_csv
 
 
 CSV_JOBS_FILE = "report_jobs.csv"
@@ -116,29 +117,40 @@ def main():
 
                     logger.info(f"[JOB {idx}] Fichiers générés")
                 """ 
+                pdfs_file = generate_pdfs_from_csv(
+                    csv_path=csv_file,
+                    filename_prefix=f"{report_type}_{nd}",
+                    report_type=report_type,
+                    output_base_dir="outputs/pdf",
+                    account_number=nd,
+                )
+
                 context = {
                     "nd": nd,
                     "report_type": report_type.upper(),
                     "date_debut": date_debut.strftime("%d/%m/%Y"),
                     "date_fin": date_fin.strftime("%d/%m/%Y"),
                     "count": len(results),
-                }                   
+                } 
 
-                send_email_html(
-                        to_email=to_email,
-                        cc=cc,
-                        bcc=bcc,
-                        subject=subject,
-                        template_name=template_name,
-                        context=context,
-                        attachments=[csv_file],
-                )
+                """
+                    send_email_html(
+                            to_email=to_email,
+                            cc=cc,
+                            bcc=bcc,
+                            subject=subject,
+                            template_name=template_name,
+                            context=context,
+                            attachments=[csv_file],
+                    )
 
-                logger.info(f"[JOB {idx}] Email envoyé avec succès")
+                    logger.info(f"[JOB {idx}] Email envoyé avec succès")
+                """
                 
                 summary_rows.append({
-                    "to_email": ",".join(to_email),
+                    "to_email": "|".join(to_email),
                     "csv_files": str(csv_file),
+                    "pdf_files": str(pdfs_file)
                 })
 
             except Exception as e:
@@ -149,13 +161,13 @@ def main():
 
     # === CSV RÉCAPITULATIF ===
     if summary_rows:
-        today = datetime.now().strftime("%Y_%m_%d")
+        today = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         summary_path = Path("outputs") / f"jobs_summary_{today}.csv"
         summary_path.parent.mkdir(exist_ok=True)
 
         with open(summary_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
-                f, fieldnames=["to_email", "csv_files"]
+                f, fieldnames=["to_email", "csv_files","pdf_files"]
             )
             writer.writeheader()
             writer.writerows(summary_rows)
