@@ -116,7 +116,7 @@ def main():
                     )
 
                     logger.info(f"[JOB {idx}] Fichiers générés")
-                """ 
+                 
                 pdfs_file = generate_pdfs_from_csv(
                     csv_path=csv_file,
                     filename_prefix=f"{report_type}_{nd}",
@@ -124,6 +124,8 @@ def main():
                     output_base_dir="outputs/pdf",
                     account_number=nd,
                 )
+
+                """
 
                 zip_file = generate_pdfs_from_csv(
                     csv_path=csv_file,
@@ -158,7 +160,7 @@ def main():
                 summary_rows.append({
                     "to_email": "|".join(to_email),
                     "csv_files": str(csv_file),
-                    "pdf_files": str(pdfs_file)
+                    "pdf_files": str(zip_file)
                 })
 
             except Exception as e:

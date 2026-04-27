@@ -127,7 +127,7 @@ def fetch_reports(
         if report_type.lower() == "remit":
             query = """
         SELECT
-            tr.MODIFIED,
+            tr.MODIFIED AS DATE_TRANS,
             tr.TRANSID AS REFMVOLA,
             tr.TRANS_TYPE,
             tr.INITIATOR,
