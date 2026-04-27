@@ -125,6 +125,14 @@ def main():
                     account_number=nd,
                 )
 
+                zip_file = generate_pdfs_from_csv(
+                    csv_path=csv_file,
+                    filename_prefix=f"{report_type}_{nd}",
+                    report_type=report_type,
+                    output_base_dir="outputs/pdf",
+                    account_number=nd,
+                )
+
                 context = {
                     "nd": nd,
                     "report_type": report_type.upper(),

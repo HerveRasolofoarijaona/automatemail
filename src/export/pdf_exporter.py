@@ -1,5 +1,6 @@
 import logging
 import csv
+import zipfile
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
@@ -236,24 +237,25 @@ def generate_pdfs_from_csv(
     account_number: str = "",
     date_col: str = "DATE_TRANS",
     csv_delimiter: str = ";",
-) -> list[Path]:
+) -> Path:
     """
-    Read a CSV file and generate one PDF per day.
+    Read a CSV file, generate one PDF per day, then compress all PDFs into a
+    single ZIP file named after the original CSV (prefix replaced by "report_pdf_").
 
     Parameters
     ----------
     csv_path         : path to the input CSV
-    filename_prefix  : prefix for output filenames  (e.g. "HABIBO_REPORT_0346137713")
-    report_type      : label shown in PDF header    (e.g. "HABIBO_REPORT")
+    filename_prefix  : prefix for PDF filenames   (e.g. "HABIBO_REPORT_0346137713")
+    report_type      : label shown in PDF header  (e.g. "HABIBO_REPORT")
     output_base_dir  : root output folder
     rows_per_page    : max rows per table chunk before page break
     account_number   : account number shown in PDF header
-    date_col         : column used to group by day  (default "DATE_TRANS")
-    csv_delimiter    : CSV field separator           (default ";")
+    date_col         : column used to group by day (default "DATE_TRANS")
+    csv_delimiter    : CSV field separator          (default ";")
 
     Returns
     -------
-    List of Path objects for every generated PDF.
+    Path of the generated ZIP file.
     """
     logger = logging.getLogger("send_report")
     logging.basicConfig(level=logging.INFO)
@@ -290,18 +292,28 @@ def generate_pdfs_from_csv(
         )
         generated.append(pdf_path)
 
-    logger.info(f"Terminé — {len(generated)} PDF générés dans {output_dir.resolve()}")
-    return generated
+    logger.info(f"{len(generated)} PDF générés — compression en ZIP…")
+
+    # ── ZIP : même nom que le CSV, préfixe "report_pdf_" ─────────────────────
+    csv_stem  = Path(csv_path).stem                        # report_HABIBO_REPORT_…
+    zip_stem  = csv_stem.replace("report_", "report_pdf_", 1)
+    zip_path  = output_dir / f"{zip_stem}.zip"
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for pdf in generated:
+            zf.write(pdf, arcname=pdf.name)   # store only filename, not full path
+
+    logger.info(f"ZIP créé : {zip_path.resolve()} ({len(generated)} fichiers)")
+    return zip_path
 
 
 # ── Demo ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    pdfs = generate_pdfs_from_csv(
+    zip_file = generate_pdfs_from_csv(
         csv_path="/mnt/user-data/uploads/report_HABIBO_REPORT_0346137713_20260201_20260228_20260412_132606.csv",
         filename_prefix="HABIBO_REPORT_0346137713",
         report_type="HABIBO_REPORT",
         output_base_dir="/home/claude/outputs_by_day",
         account_number="0346137713",
     )
-    for p in pdfs:
-        print(f"  {p.name}")
+    print(f"ZIP : {zip_file.name}")
