@@ -14,6 +14,9 @@ from reportlab.platypus import (
     Spacer,
     KeepTogether,
 )
+
+import os
+from reportlab.lib.utils import ImageReader
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -45,6 +48,8 @@ LABELS = {
     "DETAILS2":      "Détails 2",
 }
 AMOUNT_COLS = {"AMOUNT"}
+
+WATERMARK_LOGO = os.getenv("WATERMARK_LOGO")
 
 
 # ── Formatters ────────────────────────────────────────────────────────────────
@@ -149,6 +154,16 @@ def generate_pdf_for_day(
         canvas.drawCentredString(w / 2, 6 * mm,
             "À conserver pour vos archives — Service Client MVola : 807 — service.client@mvola.mg")
         canvas.restoreState()
+
+        if WATERMARK_LOGO and Path(WATERMARK_LOGO).exists():
+            logo = ImageReader(WATERMARK_LOGO)
+            canvas.setFillAlpha(0.07)
+            canvas.translate(w / 2, h / 2)
+            canvas.rotate(45)
+            canvas.drawImage(logo, -80, -80, width=160, height=160,mask="auto", preserveAspectRatio=True)
+            canvas.translate(-w / 2, -h / 2)
+            canvas.rotate(-45)
+            canvas.setFillAlpha(1.0)
 
     elements = []
     generated_at = datetime.now().strftime("%d/%m/%Y à %H:%M")

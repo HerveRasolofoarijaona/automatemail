@@ -50,7 +50,7 @@ def main():
     logger.info("=== Démarrage traitement des jobs ===")
 
     with open(csv_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter=";")
+        reader = csv.DictReader(f, delimiter=",")
 
         for idx, job in enumerate(reader, start=1):
             try:
@@ -158,9 +158,12 @@ def main():
                 """
                 
                 summary_rows.append({
-                    "to_email": "|".join(to_email),
+                    "to_email": job["to_email"],
                     "csv_files": str(csv_file),
-                    "pdf_files": str(zip_file)
+                    "pdf_files": str(zip_file),
+                    "cc":job.get("cc"),
+                    "bcc":job.get("bcc"),
+                    "Object":job.get("subject")
                 })
 
             except Exception as e:
@@ -177,7 +180,7 @@ def main():
 
         with open(summary_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
-                f, fieldnames=["to_email", "csv_files","pdf_files"]
+                f, fieldnames=["to_email", "csv_files","pdf_files","cc","bcc","Object"]
             )
             writer.writeheader()
             writer.writerows(summary_rows)
