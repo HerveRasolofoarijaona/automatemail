@@ -136,6 +136,20 @@ def generate_pdf_for_day(
     def _on_page(canvas, doc):
         canvas.saveState()
         w, h = landscape(A4)
+
+        # ── FILIGRANE (en premier, sous tout le reste) ────────
+        if WATERMARK_LOGO and Path(WATERMARK_LOGO).exists():
+            logo = ImageReader(WATERMARK_LOGO)
+            canvas.setFillAlpha(0.10)
+            canvas.translate(w / 2, h / 2)
+            canvas.rotate(45)
+            canvas.drawImage(logo, -80, -80, width=160, height=160,
+                            mask="auto", preserveAspectRatio=True)
+            canvas.rotate(-45)
+            canvas.translate(-w / 2, -h / 2)
+            canvas.setFillAlpha(1.0)
+        # ──────────────────────────────────────────────────────
+
         canvas.setFillColor(MVOLA_GREEN)
         canvas.rect(0, h - 8 * mm, w, 8 * mm, fill=1, stroke=0)
         canvas.setFont("Helvetica-Bold", 11)
@@ -143,7 +157,7 @@ def generate_pdf_for_day(
         canvas.drawString(15 * mm, h - 6 * mm, "MVola")
         canvas.setFont("Helvetica-Oblique", 8)
         canvas.drawString(15 * mm + 38, h - 5.5 * mm,
-                          "1ère solution de paiement par mobile à Madagascar")
+                        "1ère solution de paiement par mobile à Madagascar")
         canvas.setFont("Helvetica", 8)
         canvas.drawRightString(w - 15 * mm, h - 5.5 * mm, f"Page {doc.page}")
         canvas.setStrokeColor(MVOLA_YELLOW)
@@ -153,17 +167,8 @@ def generate_pdf_for_day(
         canvas.setFillColor(TEXT_MUTED)
         canvas.drawCentredString(w / 2, 6 * mm,
             "À conserver pour vos archives — Service Client MVola : 807 — service.client@mvola.mg")
-        canvas.restoreState()
 
-        if WATERMARK_LOGO and Path(WATERMARK_LOGO).exists():
-            logo = ImageReader(WATERMARK_LOGO)
-            canvas.setFillAlpha(0.07)
-            canvas.translate(w / 2, h / 2)
-            canvas.rotate(45)
-            canvas.drawImage(logo, -80, -80, width=160, height=160,mask="auto", preserveAspectRatio=True)
-            canvas.translate(-w / 2, -h / 2)
-            canvas.rotate(-45)
-            canvas.setFillAlpha(1.0)
+        canvas.restoreState()  # ← toujours en dernier
 
     elements = []
     generated_at = datetime.now().strftime("%d/%m/%Y à %H:%M")
