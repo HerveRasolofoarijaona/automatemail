@@ -89,6 +89,28 @@ def _on_page(canvas, doc):
     canvas.saveState()
     w, h = landscape(A4)
 
+    # ── FILIGRANE (EN PREMIER = derrière tout visuellement) ──
+    if WATERMARK_LOGO and Path(WATERMARK_LOGO).exists():
+        logo = ImageReader(WATERMARK_LOGO)
+
+        canvas.setFillAlpha(0.08)
+        canvas.translate(w / 2, h / 2)
+        canvas.rotate(45)
+
+        canvas.drawImage(
+            logo,
+            -120, -120,
+            width=240,
+            height=240,
+            preserveAspectRatio=True,
+            mask="auto"
+        )
+
+        canvas.rotate(-45)
+        canvas.translate(-w / 2, -h / 2)
+        canvas.setFillAlpha(1)
+
+    # ── HEADER ─────────────────────────────
     canvas.setFillColor(MVOLA_GREEN)
     canvas.rect(0, h - 8 * mm, w, 8 * mm, fill=1, stroke=0)
 
@@ -99,6 +121,7 @@ def _on_page(canvas, doc):
     canvas.setFont("Helvetica", 8)
     canvas.drawRightString(w - 15 * mm, h - 5.5 * mm, f"Page {doc.page}")
 
+    # ── FOOTER ─────────────────────────────
     canvas.setStrokeColor(MVOLA_YELLOW)
     canvas.setLineWidth(2)
     canvas.line(0, 10 * mm, w, 10 * mm)
@@ -202,8 +225,6 @@ def generate_pdf_for_day(
         elements,
         onFirstPage=_on_page,
         onLaterPages=_on_page,
-        onFirstPageEnd=_draw_watermark,
-        onLaterPagesEnd=_draw_watermark,
     )
 
     return filepath
