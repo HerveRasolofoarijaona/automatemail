@@ -131,12 +131,20 @@ def _table_style(headers):
     return TableStyle(style)
 
 # ── Generate PDF ───────────────────────────────────────────────
-def generate_pdf_for_day(day, rows, output_dir):
+def generate_pdf_for_day(
+    day: str,
+    rows: list[dict],
+    filename_prefix: str,
+    report_type: str,
+    output_dir: Path,
+    account_number: str = "",
+):
     if not rows:
         raise ValueError("Aucune donnée")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    filepath = output_dir / f"report_{day}.pdf"
+
+    filepath = output_dir / f"{filename_prefix}_{day}.pdf"
 
     doc = SimpleDocTemplate(
         str(filepath),
@@ -150,7 +158,6 @@ def generate_pdf_for_day(day, rows, output_dir):
     headers = [h for h in SELECTED_COLS if h in rows[0]]
     page_width = landscape(A4)[0] - 30 * mm
 
-    # ── Dynamic column width
     col_widths = []
     for h in headers:
         if h == "DATE_TRANS":
@@ -163,6 +170,16 @@ def generate_pdf_for_day(day, rows, output_dir):
     cell_style = ParagraphStyle("cell", fontSize=7)
     hdr_style = ParagraphStyle("hdr", fontSize=7, textColor=colors.white)
 
+    # ── HEADER INFO ─────────────────────────
+    elements = []
+
+    elements.append(Spacer(1, 5 * mm))
+    elements.append(Paragraph(f"<b>Compte :</b> {account_number}", cell_style))
+    elements.append(Paragraph(f"<b>Type :</b> {report_type}", cell_style))
+    elements.append(Paragraph(f"<b>Date :</b> {day}", cell_style))
+    elements.append(Spacer(1, 5 * mm))
+
+    # ── TABLE ───────────────────────────────
     data = [[Paragraph(LABELS.get(h, h), hdr_style) for h in headers]]
 
     for r in rows:
@@ -179,7 +196,7 @@ def generate_pdf_for_day(day, rows, output_dir):
     table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(_table_style(headers))
 
-    elements = [Spacer(1, 5 * mm), table]
+    elements.append(table)
 
     doc.build(
         elements,
@@ -192,32 +209,63 @@ def generate_pdf_for_day(day, rows, output_dir):
     return filepath
 
 # ── CSV → PDFs + ZIP ───────────────────────────────────────────
-def generate_pdfs_from_csv(csv_path, output_dir="outputs"):
-    logging.basicConfig(level=logging.INFO)
 
-    with open(csv_path, encoding="utf-8") as f:
-        data = list(csv.DictReader(f, delimiter=";"))
+def generate_pdfs_from_csv(
+        csv_path: str,
+        filename_prefix: str,
+        report_type: str,
+        output_base_dir: str = "outputs",
+        account_number: str = "",
+        date_col: str = "DATE_TRANS",
+        csv_delimiter: str = ";",
+    ):
+        logger = logging.getLogger("send_report")
+        logging.basicConfig(level=logging.INFO)
 
-    if not data:
-        raise ValueError("CSV vide")
+        # ── Read CSV ───────────────────────────
+        with open(csv_path, encoding="utf-8") as f:
+            data = list(csv.DictReader(f, delimiter=csv_delimiter))
 
-    grouped = defaultdict(list)
-    for row in data:
-        grouped[row["DATE_TRANS"][:10]].append(row)
+        if not data:
+            raise ValueError(f"CSV vide : {csv_path}")
 
-    output_dir = Path(output_dir)
-    pdfs = []
+        logger.info(f"{len(data)} lignes chargées")
 
-    for day, rows in grouped.items():
-        pdfs.append(generate_pdf_for_day(day, rows, output_dir))
+        # ── Group by day ───────────────────────
+        grouped = defaultdict(list)
+        for row in data:
+            grouped[row[date_col][:10]].append(row)
 
-    zip_path = output_dir / "reports.zip"
+        logger.info(f"{len(grouped)} jour(s) détecté(s)")
 
-    with zipfile.ZipFile(zip_path, "w") as z:
-        for pdf in pdfs:
-            z.write(pdf, pdf.name)
+        # ── Output dir ─────────────────────────
+        output_dir = Path(output_base_dir) / report_type
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    return zip_path
+        generated_pdfs = []
+
+        # ── Generate PDFs ──────────────────────
+        for day in sorted(grouped.keys()):
+            pdf_path = generate_pdf_for_day(
+                day=day,
+                rows=grouped[day],
+                filename_prefix=filename_prefix,
+                report_type=report_type,
+                output_dir=output_dir,
+                account_number=account_number,
+            )
+            generated_pdfs.append(pdf_path)
+
+        # ── ZIP ────────────────────────────────
+        zip_path = output_dir / f"{filename_prefix}.zip"
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+            for pdf in generated_pdfs:
+                z.write(pdf, pdf.name)
+
+        logger.info(f"ZIP généré : {zip_path}")
+
+        return zip_path
 
 
 # ── Run ────────────────────────────────────────────────────────
