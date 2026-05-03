@@ -129,9 +129,9 @@ def main():
 
                 zip_file = generate_pdfs_from_csv(
                     csv_path=csv_file,
-                    filename_prefix=f"{report_type}_{nd}",
+                    filename_prefix=f"{report_type}_{nd}_{date_formatee_debut}_{date_formatee_fin}",
                     report_type=report_type,
-                    output_base_dir="outputs/pdf",
+                    output_base_dir = f"outputs/pdf/{nd}/",
                     account_number=nd,
                 )
 
